@@ -1,8 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const { connectDB, sequelize } = require('./configs/sequelize');
 
 const app = express();
+
+// Connect to Database
+connectDB();
+
+// Sync Database
+sequelize.sync({ alter: true }).then(() => {
+  console.log('Database synced successfully');
+}).catch(err => {
+  console.error('Error syncing database:', err);
+});
 
 // Init Middleware
 app.use(cors());
