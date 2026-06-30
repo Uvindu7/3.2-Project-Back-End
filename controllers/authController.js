@@ -1,4 +1,4 @@
-const db = require('../configs/db');
+const User = require('../entities/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -8,8 +8,8 @@ const registerUser = async (req, res) => {
 
   try {
     // Check if user exists
-    const userExists = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (userExists.rows.length > 0) {
+    const userExists = await User.findOne({ where: { email } });
+    if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
@@ -18,14 +18,19 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Insert user
-    const newUser = await db.query(
-      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email',
-      [username, email, hashedPassword]
-    );
+    const newUser = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+    });
 
     res.status(201).json({
       message: 'User registered successfully',
-      user: newUser.rows[0],
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+      },
     });
   } catch (err) {
     console.error(err.message);
@@ -39,12 +44,10 @@ const loginUser = async (req, res) => {
 
   try {
     // Check for user
-    const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
-
-    const user = result.rows[0];
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
