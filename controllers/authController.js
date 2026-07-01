@@ -77,7 +77,66 @@ const loginUser = async (req, res) => {
   }
 };
 
+// Get Current User
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+    res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+// Update User Profile
+const updateUser = async (req, res) => {
+  const { username, email, password } = req.body;
+
+  try {
+    let user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Prepare update object
+    const updateData = {};
+    if (username) updateData.username = username;
+    
+    if (email && email !== user.email) {
+      // Check if email is already taken
+      const emailExists = await User.findOne({ where: { email } });
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email is already in use' });
+      }
+      updateData.email = email;
+    }
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
+
+    await user.update(updateData);
+
+    const updatedUser = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
+  getMe,
+  updateUser,
 };
