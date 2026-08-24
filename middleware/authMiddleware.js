@@ -1,6 +1,11 @@
-const jwt = require('jsonwebtoken');
+const supabase = require('../configs/supabase');
 
-module.exports = function (req, res, next) {
+/**
+ * Auth Middleware
+ * Verifies the Supabase JWT access token sent in the 'x-auth-token' header.
+ * Sets req.user = { id: <supabase-auth-uuid> } on success.
+ */
+module.exports = async function (req, res, next) {
   // Get token from header
   const token = req.header('x-auth-token');
 
@@ -9,10 +14,15 @@ module.exports = function (req, res, next) {
     return res.status(401).json({ message: 'No token, authorization denied' });
   }
 
-  // Verify token
+  // Verify token with Supabase
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.user;
+    const { data, error } = await supabase.auth.getUser(token);
+
+    if (error || !data.user) {
+      return res.status(401).json({ message: 'Token is not valid' });
+    }
+
+    req.user = { id: data.user.id };
     next();
   } catch (err) {
     res.status(401).json({ message: 'Token is not valid' });

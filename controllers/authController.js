@@ -1,30 +1,39 @@
 const User = require('../entities/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const supabase = require('../configs/supabase');
 const sendEmail = require('../services/emailService');
-const crypto = require('crypto');
 const { Op } = require('sequelize');
 
-// Register User
+// ─────────────────────────────────────────────
+// Register User  (Supabase Auth + DB profile row)
+// ─────────────────────────────────────────────
 const registerUser = async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    // Check if user exists
-    const userExists = await User.findOne({ where: { email } });
-    if (userExists) {
+    // Check if a profile with this email already exists
+    const existing = await User.findOne({ where: { email } });
+    if (existing) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Create auth user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // auto-confirm so login works immediately
+    });
 
-    // Insert user
+    if (authError) {
+      return res.status(400).json({ message: authError.message });
+    }
+
+    const authUser = authData.user;
+
+    // Insert matching profile row in public.users table
     const newUser = await User.create({
+      id: authUser.id, // Supabase Auth UUID
       username,
       email,
-      password: hashedPassword,
     });
 
     res.status(201).json({
@@ -41,51 +50,48 @@ const registerUser = async (req, res) => {
   }
 };
 
-// Login User
+// ─────────────────────────────────────────────
+// Login User  (Supabase Auth)
+// ─────────────────────────────────────────────
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Check for user
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+    const authUser = data.user;
+    const token = data.session.access_token;
 
-    // Create JWT Token
-    const payload = {
+    // Fetch profile from DB
+    const profile = await User.findByPk(authUser.id);
+
+    res.json({
+      token,
       user: {
-        id: user.id,
+        id: authUser.id,
+        username: profile?.username ?? authUser.email,
+        email: authUser.email,
       },
-    };
-
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
-      }
-    );
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 };
 
+// ─────────────────────────────────────────────
 // Get Current User
+// ─────────────────────────────────────────────
 const getMe = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] }
-    });
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     res.json(user);
   } catch (err) {
     console.error(err.message);
@@ -93,43 +99,55 @@ const getMe = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────
 // Update User Profile
+// ─────────────────────────────────────────────
 const updateUser = async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    let user = await User.findByPk(req.user.id);
+    const user = await User.findByPk(req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Prepare update object
-    const updateData = {};
-    if (username) updateData.username = username;
-    
+    // Prepare DB profile updates
+    const profileUpdate = {};
+    if (username) profileUpdate.username = username;
+
     if (email && email !== user.email) {
-      // Check if email is already taken
+      // Check if email is already taken in profile table
       const emailExists = await User.findOne({ where: { email } });
       if (emailExists) {
         return res.status(400).json({ message: 'Email is already in use' });
       }
-      updateData.email = email;
+      profileUpdate.email = email;
     }
 
+    // Update password in Supabase Auth if provided
     if (password) {
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(password, salt);
+      const { error: pwError } = await supabase.auth.admin.updateUserById(req.user.id, {
+        password,
+      });
+      if (pwError) {
+        return res.status(400).json({ message: pwError.message });
+      }
     }
 
-    await user.update(updateData);
+    // Update email in Supabase Auth if changed
+    if (profileUpdate.email) {
+      await supabase.auth.admin.updateUserById(req.user.id, {
+        email: profileUpdate.email,
+      });
+    }
 
-    const updatedUser = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] }
-    });
+    // Update profile row in DB
+    await User.update(profileUpdate, { where: { id: req.user.id } });
+    const updatedUser = await User.findByPk(req.user.id);
 
     res.json({
       message: 'Profile updated successfully',
-      user: updatedUser
+      user: updatedUser,
     });
   } catch (err) {
     console.error(err.message);
@@ -137,7 +155,9 @@ const updateUser = async (req, res) => {
   }
 };
 
-// Forgot Password
+// ─────────────────────────────────────────────
+// Forgot Password  (custom 6-digit code via email)
+// ─────────────────────────────────────────────
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
@@ -149,11 +169,13 @@ const forgotPassword = async (req, res) => {
 
     // Generate 6-digit code
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Save code to user
-    user.reset_code = resetCode;
-    user.reset_code_expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    await user.save();
+    const resetExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
+    // Save code to user profile in Supabase DB
+    await User.update({
+      reset_code: resetCode,
+      reset_code_expires: resetExpires,
+    }, { where: { id: user.id } });
 
     // Send email
     const message = `Your password reset code is ${resetCode}. It expires in 10 minutes.`;
@@ -172,14 +194,13 @@ const forgotPassword = async (req, res) => {
         email: user.email,
         subject: 'Password Reset Code - LIYARA Clothing',
         message,
-        html
+        html,
       });
 
       res.status(200).json({ message: 'Code sent to email' });
     } catch (err) {
-      user.reset_code = null;
-      user.reset_code_expires = null;
-      await user.save();
+      // Clear code if email fails
+      await User.update({ reset_code: null, reset_code_expires: null }, { where: { id: user.id } });
       console.error('Email Error:', err.message);
       return res.status(500).json({ message: 'Email could not be sent' });
     }
@@ -189,31 +210,37 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// Reset Password
+// ─────────────────────────────────────────────
+// Reset Password  (verify 6-digit code, update via Supabase Auth)
+// ─────────────────────────────────────────────
 const resetPassword = async (req, res) => {
   const { email, code, newPassword } = req.body;
 
   try {
-    const user = await User.findOne({ 
-      where: { 
+    // Find user by email + valid reset code
+    const user = await User.findOne({
+      where: {
         email,
         reset_code: code,
         reset_code_expires: { [Op.gt]: new Date() }
-      } 
+      }
     });
 
     if (!user) {
       return res.status(400).json({ message: 'Invalid or expired code' });
     }
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
-    
-    // Clear reset code
-    user.reset_code = null;
-    user.reset_code_expires = null;
-    await user.save();
+    // Update password in Supabase Auth
+    const { error: pwError } = await supabase.auth.admin.updateUserById(user.id, {
+      password: newPassword,
+    });
+
+    if (pwError) {
+      return res.status(400).json({ message: pwError.message });
+    }
+
+    // Clear reset code from DB
+    await User.update({ reset_code: null, reset_code_expires: null }, { where: { id: user.id } });
 
     res.status(200).json({ message: 'Password reset successful' });
   } catch (err) {
