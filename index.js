@@ -13,6 +13,7 @@ app.get('/', (req, res) => res.send('API Running'));
 // Define Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
 
 const PORT = process.env.PORT || 5000;
 const sequelize = require('./configs/database');
