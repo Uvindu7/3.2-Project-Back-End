@@ -1,11 +1,11 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../configs/sequelize');
+const { DataTypes, Op } = require('sequelize');
+const sequelize = require('../configs/database');
 
-const User = sequelize.define('User', {
+const UserModel = sequelize.define('User', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
-    autoIncrement: true,
   },
   username: {
     type: DataTypes.STRING,
@@ -15,13 +15,6 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
-    validate: {
-      isEmail: true,
-    },
-  },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false,
   },
   reset_code: {
     type: DataTypes.STRING,
@@ -31,14 +24,11 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true,
   },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
 }, {
   tableName: 'users',
-  timestamps: false, // Disabling default timestamps as we use created_at manually or we can let Sequelize handle it if preferred.
-  // Given the existing table has created_at, I'll stick to that.
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false
 });
 
-module.exports = User;
+module.exports = UserModel;
