@@ -42,6 +42,7 @@ const registerUser = async (req, res) => {
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
+        isAdmin: newUser.isAdmin || false,
       },
     });
   } catch (err) {
@@ -75,6 +76,7 @@ const loginUser = async (req, res) => {
         id: authUser.id,
         username: profile?.username ?? authUser.email,
         email: authUser.email,
+        isAdmin: profile?.isAdmin ?? false,
       },
     });
   } catch (err) {
