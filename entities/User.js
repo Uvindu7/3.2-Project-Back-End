@@ -16,6 +16,10 @@ const UserModel = sequelize.define('User', {
     allowNull: false,
     unique: true,
   },
+  isAdmin: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
   reset_code: {
     type: DataTypes.STRING,
     allowNull: true,
