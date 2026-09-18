@@ -15,9 +15,12 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/categories', require('./routes/categoryRoutes'));
 
 const PORT = process.env.PORT || 5000;
 const sequelize = require('./configs/database');
+require('./entities'); // Load all entities and relationships before syncing
 
 sequelize.sync({ alter: true }).then(() => {
   console.log('✅ Database synced successfully.');

@@ -9,6 +9,10 @@ const { Op } = require('sequelize');
 const registerUser = async (req, res) => {
   const { username, email, password } = req.body;
 
+  // Validate input
+  if (!username || !email || !password) {
+    return res.status(400).json({ message: 'Please provide all required fields' });
+  }
   try {
     // Check if a profile with this email already exists
     const existing = await User.findOne({ where: { email } });
@@ -118,6 +122,12 @@ const updateUser = async (req, res) => {
     if (username) profileUpdate.username = username;
 
     if (email && email !== user.email) {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Invalid email format' });
+      }
+
       // Check if email is already taken in profile table
       const emailExists = await User.findOne({ where: { email } });
       if (emailExists) {

@@ -38,4 +38,59 @@ const createPaymentIntent = async (req, res) => {
   }
 };
 
-module.exports = { createPaymentIntent };
+const sendEmail = require('../services/emailService');
+
+const sendOrderConfirmation = async (req, res) => {
+  try {
+    const { email, items, grandTotal, transactionId } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const itemsHtml = items.map(item => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.name} x ${item.quantity}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">Rs ${(item.price * item.quantity).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-w-lg margin: auto;">
+        <h2 style="color: #111;">Order Confirmed! 🎉</h2>
+        <p>Thank you for shopping at LIYARA Clothing. Your payment has been received successfully.</p>
+        <p><strong>Transaction ID:</strong> ${transactionId}</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 10px; background: #f9f9f9;">Item</th>
+              <th style="text-align: right; padding: 10px; background: #f9f9f9;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+            <tr>
+              <td style="padding: 10px; font-weight: bold; text-align: right;">Grand Total:</td>
+              <td style="padding: 10px; font-weight: bold; text-align: right;">Rs ${grandTotal.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top: 20px;">We will notify you once your items are shipped.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      email,
+      subject: 'Your Order Confirmation - LIYARA Clothing',
+      message: `Your order for Rs ${grandTotal} has been confirmed. Transaction ID: ${transactionId}`,
+      html
+    });
+
+    res.json({ success: true, message: 'Email sent' });
+  } catch (error) {
+    console.error('Order Confirmation Email error:', error.message);
+    res.status(500).json({ error: 'Failed to send confirmation email' });
+  }
+};
+
+module.exports = { createPaymentIntent, sendOrderConfirmation };
