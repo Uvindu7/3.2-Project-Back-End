@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+require('dotenv').config();
 require('dotenv').config();
 
 const app = express();
@@ -7,6 +9,9 @@ const app = express();
 // Init Middleware
 app.use(cors());
 app.use(express.json({ extended: false }));
+
+// Serve static files from the public folder (specifically for image uploads)
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 app.get('/', (req, res) => res.send('API Running'));
 

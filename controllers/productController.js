@@ -20,13 +20,20 @@ const createProduct = async (req, res) => {
         }
     }
 
+    let finalImageUrl = req.body.imageUrl;
+    
+    // If a file was uploaded, set the imageUrl to the Cloudinary URL
+    if (req.file) {
+      finalImageUrl = req.file.path;
+    }
+
     const product = await Product.create({
       name,
       description,
       price,
       stock,
       categoryId: categoryId || null,
-      imageUrl,
+      imageUrl: finalImageUrl,
       clothingType: clothingType || 'Other',
       style: style || 'Casual',
       color: color || ''
@@ -64,13 +71,19 @@ const updateProduct = async (req, res) => {
         }
     }
 
+    let finalImageUrl = req.body.imageUrl;
+    
+    if (req.file) {
+      finalImageUrl = req.file.path;
+    }
+
     product = await product.update({
       name: name || product.name,
       description: description !== undefined ? description : product.description,
       price: price !== undefined ? price : product.price,
       stock: stock !== undefined ? stock : product.stock,
       categoryId: categoryId !== undefined ? categoryId : product.categoryId,
-      imageUrl: imageUrl !== undefined ? imageUrl : product.imageUrl,
+      imageUrl: finalImageUrl !== undefined ? finalImageUrl : product.imageUrl,
       clothingType: clothingType !== undefined ? clothingType : product.clothingType,
       style: style !== undefined ? style : product.style,
       color: color !== undefined ? color : product.color

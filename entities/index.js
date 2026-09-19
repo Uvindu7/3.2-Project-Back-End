@@ -3,6 +3,7 @@ const User = require('./User');
 const Review = require('./Review');
 const Category = require('./Category');
 const Product = require('./Product');
+const Order = require('./Order');
 
 // Define Relationships
 
@@ -18,5 +19,6 @@ module.exports = {
   User,
   Review,
   Category,
-  Product
+  Product,
+  Order
 };

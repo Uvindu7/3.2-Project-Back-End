@@ -39,10 +39,11 @@ const createPaymentIntent = async (req, res) => {
 };
 
 const sendEmail = require('../services/emailService');
+const { Order } = require('../entities');
 
 const sendOrderConfirmation = async (req, res) => {
   try {
-    const { email, items, grandTotal, transactionId } = req.body;
+    const { email, billing, items, grandTotal, transactionId } = req.body;
     
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -86,11 +87,43 @@ const sendOrderConfirmation = async (req, res) => {
       html
     });
 
-    res.json({ success: true, message: 'Email sent' });
+    // Save order to the database
+    await Order.create({
+      transactionId,
+      email,
+      firstName: billing?.firstName || null,
+      lastName: billing?.lastName || null,
+      address: billing?.address || null,
+      city: billing?.city || null,
+      postalCode: billing?.postalCode || null,
+      phone: billing?.phone || null,
+      grandTotal,
+      items,
+      status: 'Pending'
+    });
+
+    res.json({ success: true, message: 'Email sent and order saved' });
   } catch (error) {
+    require('fs').appendFileSync('db_error.log', `[${new Date().toISOString()}] Error saving order: ${error.message}\n${error.stack}\n`);
     console.error('Order Confirmation Email error:', error.message);
     res.status(500).json({ error: 'Failed to send confirmation email' });
   }
 };
 
-module.exports = { createPaymentIntent, sendOrderConfirmation };
+const getUserOrders = async (req, res) => {
+  try {
+    const email = req.user?.email; // populated by auth middleware
+    if (!email) return res.status(401).json({ error: 'Unauthorized' });
+
+    const orders = await Order.findAll({
+      where: { email },
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(orders);
+  } catch (error) {
+    console.error('Fetch User Orders error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+};
+
+module.exports = { createPaymentIntent, sendOrderConfirmation, getUserOrders };
