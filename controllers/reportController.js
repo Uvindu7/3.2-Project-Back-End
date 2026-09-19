@@ -92,7 +92,7 @@ exports.generatePDFReport = async (req, res) => {
   try {
     const type = req.query.type || 'sales'; // 'sales' or 'inventory'
     
-    const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
+    const doc = new PDFDocument({ margins: { top: 50, bottom: 20, left: 50, right: 50 }, size: 'A4', bufferPages: true });
     const filename = `${type}_report_${Date.now()}.pdf`;
 
     res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
