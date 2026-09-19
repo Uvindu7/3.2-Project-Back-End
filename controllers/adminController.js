@@ -107,7 +107,7 @@ const getDashboardStats = async (req, res) => {
     const usersCount = await User.count();
     const reviewsCount = await Review.count();
     const productsCount = await Product.count();
-    const outOfStockCount = await Product.count({ where: { stock: 0 } });
+    const outOfStockCount = await Product.count({ where: { stockS: 0, stockM: 0, stockL: 0 } });
     const ordersCount = await Order.count();
     
     // Revenue calculation

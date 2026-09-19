@@ -22,13 +22,23 @@ const ProductModel = sequelize.define('Product', {
       min: 0,
     }
   },
-  stock: {
+  stockS: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 0,
-    validate: {
-      min: 0,
-    }
+    defaultValue: 10,
+    validate: { min: 0 }
+  },
+  stockM: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 10,
+    validate: { min: 0 }
+  },
+  stockL: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 10,
+    validate: { min: 0 }
   },
   imageUrl: {
     type: DataTypes.STRING,

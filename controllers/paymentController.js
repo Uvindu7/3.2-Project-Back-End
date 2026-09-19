@@ -39,7 +39,7 @@ const createPaymentIntent = async (req, res) => {
 };
 
 const sendEmail = require('../services/emailService');
-const { Order } = require('../entities');
+const { Order, Product } = require('../entities');
 
 const sendOrderConfirmation = async (req, res) => {
   try {
@@ -101,6 +101,22 @@ const sendOrderConfirmation = async (req, res) => {
       items,
       status: 'Pending'
     });
+
+    // Reduce stock for each item
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        if (item.id) {
+          let stockField = 'stockM';
+          if (item.size === 'S') stockField = 'stockS';
+          else if (item.size === 'L') stockField = 'stockL';
+          
+          await Product.decrement(stockField, {
+            by: item.quantity || 1,
+            where: { id: item.id }
+          });
+        }
+      }
+    }
 
     res.json({ success: true, message: 'Email sent and order saved' });
   } catch (error) {

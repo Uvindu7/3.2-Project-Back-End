@@ -3,25 +3,25 @@ const { Product, Category } = require('../entities');
 // @desc    Create a product
 const createProduct = async (req, res) => {
   try {
-    const { name, description, price, stock, categoryId, imageUrl, clothingType, style, color } = req.body;
+    const { name, description, price, stockS, stockM, stockL, categoryId, imageUrl, clothingType, style, color } = req.body;
 
-    if (!name || price === undefined || stock === undefined) {
-      return res.status(400).json({ message: 'Name, price, and stock are required' });
+    if (!name || price === undefined || stockS === undefined || stockM === undefined || stockL === undefined) {
+      return res.status(400).json({ message: 'Name, price, and all size stocks are required' });
     }
 
-    if (price < 0 || stock < 0) {
+    if (price < 0 || stockS < 0 || stockM < 0 || stockL < 0) {
       return res.status(400).json({ message: 'Price and stock cannot be negative' });
     }
 
     if (categoryId) {
-        const categoryExists = await Category.findByPk(categoryId);
-        if (!categoryExists) {
-            return res.status(400).json({ message: 'Invalid categoryId' });
-        }
+      const categoryExists = await Category.findByPk(categoryId);
+      if (!categoryExists) {
+        return res.status(400).json({ message: 'Invalid categoryId' });
+      }
     }
 
     let finalImageUrl = req.body.imageUrl;
-    
+
     // If a file was uploaded, set the imageUrl to the Cloudinary URL
     if (req.file) {
       finalImageUrl = req.file.path;
@@ -31,7 +31,9 @@ const createProduct = async (req, res) => {
       name,
       description,
       price,
-      stock,
+      stockS,
+      stockM,
+      stockL,
       categoryId: categoryId || null,
       imageUrl: finalImageUrl,
       clothingType: clothingType || 'Other',
@@ -50,7 +52,7 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, stock, categoryId, imageUrl, clothingType, style, color } = req.body;
+    const { name, description, price, stockS, stockM, stockL, categoryId, imageUrl, clothingType, style, color } = req.body;
 
     let product = await Product.findByPk(id);
     if (!product) {
@@ -58,21 +60,21 @@ const updateProduct = async (req, res) => {
     }
 
     if (price !== undefined && price < 0) {
-        return res.status(400).json({ message: 'Price cannot be negative' });
+      return res.status(400).json({ message: 'Price cannot be negative' });
     }
-    if (stock !== undefined && stock < 0) {
-        return res.status(400).json({ message: 'Stock cannot be negative' });
+    if ((stockS !== undefined && stockS < 0) || (stockM !== undefined && stockM < 0) || (stockL !== undefined && stockL < 0)) {
+      return res.status(400).json({ message: 'Stock cannot be negative' });
     }
 
     if (categoryId) {
-        const categoryExists = await Category.findByPk(categoryId);
-        if (!categoryExists) {
-            return res.status(400).json({ message: 'Invalid categoryId' });
-        }
+      const categoryExists = await Category.findByPk(categoryId);
+      if (!categoryExists) {
+        return res.status(400).json({ message: 'Invalid categoryId' });
+      }
     }
 
     let finalImageUrl = req.body.imageUrl;
-    
+
     if (req.file) {
       finalImageUrl = req.file.path;
     }
@@ -81,7 +83,9 @@ const updateProduct = async (req, res) => {
       name: name || product.name,
       description: description !== undefined ? description : product.description,
       price: price !== undefined ? price : product.price,
-      stock: stock !== undefined ? stock : product.stock,
+      stockS: stockS !== undefined ? stockS : product.stockS,
+      stockM: stockM !== undefined ? stockM : product.stockM,
+      stockL: stockL !== undefined ? stockL : product.stockL,
       categoryId: categoryId !== undefined ? categoryId : product.categoryId,
       imageUrl: finalImageUrl !== undefined ? finalImageUrl : product.imageUrl,
       clothingType: clothingType !== undefined ? clothingType : product.clothingType,
@@ -117,7 +121,7 @@ const deleteProduct = async (req, res) => {
 const getAllProducts = async (req, res) => {
   try {
     const products = await Product.findAll({
-        include: [{ model: Category, attributes: ['id', 'name'] }]
+      include: [{ model: Category, attributes: ['id', 'name'] }]
     });
     res.json(products);
   } catch (err) {
@@ -131,9 +135,9 @@ const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findByPk(id, {
-        include: [{ model: Category, attributes: ['id', 'name'] }]
+      include: [{ model: Category, attributes: ['id', 'name'] }]
     });
-    
+
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
@@ -149,7 +153,7 @@ const getProductRecommendations = async (req, res) => {
   try {
     const { id } = req.params;
     const currentProduct = await Product.findByPk(id);
-    
+
     if (!currentProduct) {
       return res.status(404).json({ message: 'Product not found' });
     }
