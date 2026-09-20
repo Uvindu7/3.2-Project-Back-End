@@ -3,7 +3,7 @@ const { Product, Category } = require('../entities');
 // @desc    Create a product
 const createProduct = async (req, res) => {
   try {
-    const { name, description, price, stockS, stockM, stockL, categoryId, imageUrl, clothingType, style, color } = req.body;
+    const { name, description, price, discountPercent, wholesaleDiscountPercent, stockS, stockM, stockL, categoryId, imageUrl, clothingType, style, color } = req.body;
 
     if (!name || price === undefined || stockS === undefined || stockM === undefined || stockL === undefined) {
       return res.status(400).json({ message: 'Name, price, and all size stocks are required' });
@@ -31,6 +31,8 @@ const createProduct = async (req, res) => {
       name,
       description,
       price,
+      discountPercent: discountPercent || 0,
+      wholesaleDiscountPercent: wholesaleDiscountPercent || 0,
       stockS,
       stockM,
       stockL,
@@ -52,7 +54,7 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, stockS, stockM, stockL, categoryId, imageUrl, clothingType, style, color } = req.body;
+    const { name, description, price, discountPercent, wholesaleDiscountPercent, stockS, stockM, stockL, categoryId, imageUrl, clothingType, style, color } = req.body;
 
     let product = await Product.findByPk(id);
     if (!product) {
@@ -82,11 +84,13 @@ const updateProduct = async (req, res) => {
     product = await product.update({
       name: name || product.name,
       description: description !== undefined ? description : product.description,
-      price: price !== undefined ? price : product.price,
-      stockS: stockS !== undefined ? stockS : product.stockS,
-      stockM: stockM !== undefined ? stockM : product.stockM,
-      stockL: stockL !== undefined ? stockL : product.stockL,
-      categoryId: categoryId !== undefined ? categoryId : product.categoryId,
+      price: price !== undefined ? (price === '' ? 0 : price) : product.price,
+      discountPercent: discountPercent !== undefined ? (discountPercent === '' ? 0 : discountPercent) : product.discountPercent,
+      wholesaleDiscountPercent: wholesaleDiscountPercent !== undefined ? (wholesaleDiscountPercent === '' ? 0 : wholesaleDiscountPercent) : product.wholesaleDiscountPercent,
+      stockS: stockS !== undefined ? (stockS === '' ? 0 : stockS) : product.stockS,
+      stockM: stockM !== undefined ? (stockM === '' ? 0 : stockM) : product.stockM,
+      stockL: stockL !== undefined ? (stockL === '' ? 0 : stockL) : product.stockL,
+      categoryId: categoryId !== undefined ? (categoryId === '' ? null : categoryId) : product.categoryId,
       imageUrl: finalImageUrl !== undefined ? finalImageUrl : product.imageUrl,
       clothingType: clothingType !== undefined ? clothingType : product.clothingType,
       style: style !== undefined ? style : product.style,
@@ -158,17 +162,63 @@ const getProductRecommendations = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Recommendation logic: find products of different clothingType but same style
+    // Recommendation logic: Since the store only sells T-shirts, fetch from RecommendationItem
+    // to provide styling inspiration (trousers, shoes, etc.) based on the same style and smart color matching.
+    const RecommendationItem = require('../entities/RecommendationItem');
     const { Op } = require('sequelize');
-    const recommendations = await Product.findAll({
+
+    // Smart color matching mapping
+    const colorRules = {
+      'black': ['white', 'grey', 'black', 'red', 'beige'],
+      'white': ['black', 'navy', 'grey', 'blue', 'beige'],
+      'grey': ['black', 'white', 'navy', 'maroon'],
+      'navy': ['white', 'grey', 'khaki', 'beige'],
+      'red': ['black', 'navy', 'white', 'grey'],
+      'blue': ['white', 'khaki', 'grey', 'navy'],
+      'green': ['white', 'black', 'beige', 'navy'],
+      'beige': ['navy', 'black', 'white', 'green'],
+      'yellow': ['black', 'navy', 'white', 'grey'],
+      'brown': ['white', 'beige', 'navy', 'black']
+    };
+
+    const productColor = (currentProduct.color || '').toLowerCase().trim();
+    // Get compatible colors from the mapping, or default to just matching the same color if not found
+    const compatibleColors = colorRules[productColor] || [productColor];
+
+    // First, try to find items that match BOTH style and a compatible color
+    let recommendations = await RecommendationItem.findAll({
       where: {
-        id: { [Op.ne]: currentProduct.id },
         style: currentProduct.style,
-        clothingType: { [Op.ne]: currentProduct.clothingType }
+        color: {
+          // PostgreSQL is case-sensitive by default, so we use iLike or just match against common capitalizations.
+          // For safety, we use Op.iRegexp to do case-insensitive matching if using Postgres, 
+          // but Op.iLike with ANY is better, or just doing a basic array match if colors are stored cleanly.
+          // Since colors might be stored as "Black", "White", we'll just check against the lowercase version in JS 
+          // But Sequelize Op.in does strict matching. We can use Op.iLike combined with Op.or.
+          [Op.or]: compatibleColors.map(c => ({ [Op.iLike]: `%${c}%` }))
+        }
       },
-      include: [{ model: Category, attributes: ['id', 'name'] }],
       limit: 4
     });
+
+    // If we don't have 4 smart color matches, fill the remaining slots with items of the same style
+    if (recommendations.length < 4) {
+      const existingIds = recommendations.map(r => r.id);
+      const whereClause = {
+        style: currentProduct.style
+      };
+
+      if (existingIds.length > 0) {
+        whereClause.id = { [Op.notIn]: existingIds };
+      }
+
+      const moreRecommendations = await RecommendationItem.findAll({
+        where: whereClause,
+        limit: 4 - recommendations.length
+      });
+
+      recommendations = [...recommendations, ...moreRecommendations];
+    }
 
     res.json(recommendations);
   } catch (err) {

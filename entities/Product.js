@@ -22,6 +22,16 @@ const ProductModel = sequelize.define('Product', {
       min: 0,
     }
   },
+  discountPercent: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
+  },
+  wholesaleDiscountPercent: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
+  },
   stockS: {
     type: DataTypes.INTEGER,
     allowNull: false,

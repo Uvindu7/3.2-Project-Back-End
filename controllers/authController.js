@@ -13,6 +13,12 @@ const registerUser = async (req, res) => {
   if (!username || !email || !password) {
     return res.status(400).json({ message: 'Please provide all required fields' });
   }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ message: 'Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.' });
+  }
+
   try {
     // Check if a profile with this email already exists
     const existing = await User.findOne({ where: { email } });
@@ -138,6 +144,11 @@ const updateUser = async (req, res) => {
 
     // Update password in Supabase Auth if provided
     if (password) {
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({ message: 'Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.' });
+      }
+
       const { error: pwError } = await supabase.auth.admin.updateUserById(req.user.id, {
         password,
       });
@@ -240,6 +251,11 @@ const resetPassword = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ message: 'Invalid or expired code' });
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({ message: 'Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.' });
     }
 
     // Update password in Supabase Auth

@@ -128,7 +128,10 @@ const sendOrderConfirmation = async (req, res) => {
 
 const getUserOrders = async (req, res) => {
   try {
-    const email = req.user?.email; // populated by auth middleware
+    const { User } = require('../entities');
+    const user = await User.findByPk(req.user.id);
+    const email = user?.email;
+    
     if (!email) return res.status(401).json({ error: 'Unauthorized' });
 
     const orders = await Order.findAll({
@@ -142,4 +145,43 @@ const getUserOrders = async (req, res) => {
   }
 };
 
-module.exports = { createPaymentIntent, sendOrderConfirmation, getUserOrders };
+const cancelUserOrder = async (req, res) => {
+  try {
+    const { User, Order, Product } = require('../entities');
+    const user = await User.findByPk(req.user.id);
+    const email = user?.email;
+    if (!email) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { id } = req.params;
+    const order = await Order.findOne({ where: { id, email } });
+
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status !== 'Pending') return res.status(400).json({ error: 'Only pending orders can be cancelled' });
+
+    order.status = 'Cancelled';
+    await order.save();
+
+    // restore stock
+    if (order.items && Array.isArray(order.items)) {
+      for (const item of order.items) {
+        if (item.id) {
+          let stockField = 'stockM';
+          if (item.size === 'S') stockField = 'stockS';
+          else if (item.size === 'L') stockField = 'stockL';
+          
+          await Product.increment(stockField, {
+            by: item.quantity || 1,
+            where: { id: item.id }
+          });
+        }
+      }
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error('Cancel Order error:', error.message);
+    res.status(500).json({ error: 'Failed to cancel order' });
+  }
+};
+
+module.exports = { createPaymentIntent, sendOrderConfirmation, getUserOrders, cancelUserOrder };

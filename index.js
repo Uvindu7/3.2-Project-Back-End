@@ -23,6 +23,7 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
+app.use('/api/recommendations', require('./routes/recommendationRoutes'));
 
 const PORT = process.env.PORT || 5000;
 const sequelize = require('./configs/database');
@@ -33,5 +34,6 @@ sequelize.sync({ alter: true }).then(() => {
   app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 }).catch(err => {
   console.error('❌ Error syncing database:', err.message);
+  require('fs').writeFileSync('sync_error.log', err.toString() + '\n' + (err.sql || 'No SQL'));
   app.listen(PORT, () => console.log(`Server started on port ${PORT} (DB Sync Failed)`));
 });

@@ -4,6 +4,7 @@ const {
   getAllUsers,
   deleteUser,
   getAllReviews,
+  deleteReview,
   getAllOrders,
   updateOrderStatus,
   getDashboardStats
@@ -21,10 +22,15 @@ router.get('/users', auth, admin, getAllUsers);
 // @access  Private/Admin
 router.delete('/users/:id', auth, admin, deleteUser);
 
-// @route   GET api/admin/reviews
+// @route   GET /api/admin/reviews
 // @desc    Get all reviews
 // @access  Private/Admin
 router.get('/reviews', auth, admin, getAllReviews);
+
+// @route   DELETE /api/admin/reviews/:id
+// @desc    Delete a review
+// @access  Private/Admin
+router.delete('/reviews/:id', auth, admin, deleteReview);
 
 // @route   GET api/admin/orders
 // @desc    Get all orders

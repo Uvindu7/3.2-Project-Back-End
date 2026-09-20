@@ -63,6 +63,23 @@ const getAllReviews = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
+// Delete a review
+// ─────────────────────────────────────────────
+const deleteReview = async (req, res) => {
+  try {
+    const review = await Review.findByPk(req.params.id);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+    await review.destroy();
+    res.json({ message: 'Review deleted successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+// ─────────────────────────────────────────────
 // Get all orders
 // ─────────────────────────────────────────────
 const getAllOrders = async (req, res) => {
@@ -141,6 +158,7 @@ module.exports = {
   getAllUsers,
   deleteUser,
   getAllReviews,
+  deleteReview,
   getAllOrders,
   updateOrderStatus,
   getDashboardStats

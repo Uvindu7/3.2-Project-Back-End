@@ -29,7 +29,39 @@ const getAllCategories = async (req, res) => {
   }
 };
 
+const updateCategory = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const category = await Category.findByPk(req.params.id);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+    
+    if (name) category.name = name;
+    if (description !== undefined) category.description = description;
+    
+    await category.save();
+    res.json(category);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+const deleteCategory = async (req, res) => {
+  try {
+    const category = await Category.findByPk(req.params.id);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+    
+    await category.destroy();
+    res.json({ message: 'Category removed' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
 module.exports = {
   createCategory,
-  getAllCategories
+  getAllCategories,
+  updateCategory,
+  deleteCategory
 };

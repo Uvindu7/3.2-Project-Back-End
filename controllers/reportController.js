@@ -43,17 +43,21 @@ exports.getInventoryMetrics = async (req, res) => {
     let lowStockItems = [];
     let outOfStockItems = [];
     
-    products.forEach(p => {
-      const totalStock = p.stockS + p.stockM + p.stockL;
+    const inventoryData = products.map(p => {
+      const totalStock = (p.stockS || 0) + (p.stockM || 0) + (p.stockL || 0);
       if (totalStock === 0) outOfStockItems.push(p);
       else if (totalStock < 10) lowStockItems.push(p);
+      return {
+        ...p.toJSON(),
+        totalStock
+      };
     });
 
     res.json({
       totalProducts: products.length,
       outOfStockCount: outOfStockItems.length,
       lowStockCount: lowStockItems.length,
-      inventory: products
+      inventory: inventoryData
     });
   } catch (error) {
     console.error('Error fetching inventory metrics:', error);

@@ -49,6 +49,31 @@ const createReview = async (req, res) => {
   }
 
   try {
+    // Get user to check email against orders
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const Order = require('../entities/Order');
+    const orders = await Order.findAll({ where: { email: user.email } });
+    
+    let hasPurchased = false;
+    for (const order of orders) {
+      if (order.items && Array.isArray(order.items)) {
+        // Items in JSON array have 'id' matching the productId
+        const itemExists = order.items.find(item => item.id === productId);
+        if (itemExists) {
+          hasPurchased = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasPurchased) {
+      return res.status(403).json({ message: 'You can only review products that you have purchased.' });
+    }
+
     // Save review in database
     const newReview = await Review.create({
       productId,
