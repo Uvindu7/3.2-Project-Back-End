@@ -190,11 +190,7 @@ const getProductRecommendations = async (req, res) => {
       where: {
         style: currentProduct.style,
         color: {
-          // PostgreSQL is case-sensitive by default, so we use iLike or just match against common capitalizations.
-          // For safety, we use Op.iRegexp to do case-insensitive matching if using Postgres, 
-          // but Op.iLike with ANY is better, or just doing a basic array match if colors are stored cleanly.
-          // Since colors might be stored as "Black", "White", we'll just check against the lowercase version in JS 
-          // But Sequelize Op.in does strict matching. We can use Op.iLike combined with Op.or.
+
           [Op.or]: compatibleColors.map(c => ({ [Op.iLike]: `%${c}%` }))
         }
       },

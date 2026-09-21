@@ -1,10 +1,5 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-/**
- * POST /api/payment/create-intent
- * Creates a Stripe PaymentIntent and returns the client_secret.
- * Body: { amount (in paise/cents), currency, items }
- */
 const createPaymentIntent = async (req, res) => {
   try {
     const { amount, currency = 'lkr', items } = req.body;
@@ -44,7 +39,7 @@ const { Order, Product } = require('../entities');
 const sendOrderConfirmation = async (req, res) => {
   try {
     const { email, billing, items, grandTotal, transactionId } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
@@ -109,7 +104,7 @@ const sendOrderConfirmation = async (req, res) => {
           let stockField = 'stockM';
           if (item.size === 'S') stockField = 'stockS';
           else if (item.size === 'L') stockField = 'stockL';
-          
+
           await Product.decrement(stockField, {
             by: item.quantity || 1,
             where: { id: item.id }
@@ -131,7 +126,7 @@ const getUserOrders = async (req, res) => {
     const { User } = require('../entities');
     const user = await User.findByPk(req.user.id);
     const email = user?.email;
-    
+
     if (!email) return res.status(401).json({ error: 'Unauthorized' });
 
     const orders = await Order.findAll({
@@ -168,7 +163,7 @@ const cancelUserOrder = async (req, res) => {
           let stockField = 'stockM';
           if (item.size === 'S') stockField = 'stockS';
           else if (item.size === 'L') stockField = 'stockL';
-          
+
           await Product.increment(stockField, {
             by: item.quantity || 1,
             where: { id: item.id }

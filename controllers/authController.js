@@ -234,7 +234,7 @@ const forgotPassword = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-// Reset Password  (verify 6-digit code, update via Supabase Auth)
+// Reset Password  
 // ─────────────────────────────────────────────
 const resetPassword = async (req, res) => {
   const { email, code, newPassword } = req.body;
