@@ -23,7 +23,7 @@ REST API
 
 Frontend Repository :
 
-GitHub Repository: https://github.com/Uvindu7/3.2-Project-Front-End
+GitHub Repository: <https://github.com/Uvindu7/3.2-Project-Front-End>
 
 Development Tools
 
